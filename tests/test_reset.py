@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 This file was adapted from a setup file given in 
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
@@ -85,10 +86,32 @@ class ReproduceResetRaceCondition:
             target=self.repeat_timer, args=(self.reset_race, 0.03)
         )
         self.thread_reset_and_reset_race: threading.Thread = threading.Thread(
+=======
+import airsimdroneracinglab
+import threading
+import time
+
+
+class ReproduceResetRaceCondition:
+    def __init__(self, drone_name="drone_1"):
+        self.airsim_client = airsimdroneracinglab.MultirotorClient()
+        self.airsim_client_2 = airsimdroneracinglab.MultirotorClient()
+        self.airsim_client_3 = airsimdroneracinglab.MultirotorClient()
+        self.drone_name = drone_name
+        self.is_thread_active = False
+        self.thread_reset = threading.Thread(
+            target=self.repeat_timer, args=(self.reset, 0.05)
+        )
+        self.thread_reset_race = threading.Thread(
+            target=self.repeat_timer, args=(self.reset_race, 0.03)
+        )
+        self.thread_reset_and_reset_race = threading.Thread(
+>>>>>>> cd5dadc (Initial commit)
             target=self.repeat_timer, args=(self.reset_and_reset_race, 0.09)
         )
         self.is_thread_active = False
 
+<<<<<<< HEAD
     def repeat_timer(self, callback, period: float) -> None:
         """
         Simple sleep timer.
@@ -100,10 +123,14 @@ class ReproduceResetRaceCondition:
             period : float
                 Repeat interval in seconds
         """
+=======
+    def repeat_timer(self, callback, period):
+>>>>>>> cd5dadc (Initial commit)
         while self.is_thread_active:
             callback()
             time.sleep(period)
 
+<<<<<<< HEAD
     def load_level(self, level_name: str, sleep_sec: float = 2.0) -> None:
         """
         Loads given simulator level.
@@ -118,10 +145,15 @@ class ReproduceResetRaceCondition:
                 Sleep time for loading level.
         """
         self.level_name: str = level_name
+=======
+    def load_level(self, level_name, sleep_sec=2.0):
+        self.level_name = level_name
+>>>>>>> cd5dadc (Initial commit)
         self.airsim_client.simLoadLevel(self.level_name)
         self.airsim_client.confirmConnection()  # failsafe
         time.sleep(sleep_sec)  # let the environment load completely
 
+<<<<<<< HEAD
     def reset(self) -> None:
         """Resets Airsim cleint."""
         print(time.time(), "called reset")
@@ -134,10 +166,22 @@ class ReproduceResetRaceCondition:
 
     def reset_and_reset_race(self) -> None:
         """Resets airsim cleint and current race"""
+=======
+    def reset(self):
+        print(time.time(), "called reset")
+        self.airsim_client.reset()
+
+    def reset_race(self):
+        print(time.time(), "called simResetRace")
+        self.airsim_client_2.simResetRace()
+
+    def reset_and_reset_race(self):
+>>>>>>> cd5dadc (Initial commit)
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
 
+<<<<<<< HEAD
     def start_race(self, tier: int = 1) -> None:
         """
         Starts race against a baseline drone using moveonspline
@@ -156,6 +200,13 @@ class ReproduceResetRaceCondition:
         Initializes user drone, enabling API control and arming the vehicle.
         Sets default values for trajectory tracker gains.
         """
+=======
+    def start_race(self, tier):
+        print(time.time(), "called start race")
+        self.airsim_client.simStartRace(tier)
+
+    def initialize_drone(self):
+>>>>>>> cd5dadc (Initial commit)
         self.airsim_client.enableApiControl(vehicle_name=self.drone_name)
         self.airsim_client.arm(vehicle_name=self.drone_name)
 
@@ -182,8 +233,12 @@ class ReproduceResetRaceCondition:
         )
         time.sleep(0.2)
 
+<<<<<<< HEAD
     def start_threads(self) -> None:
         """Starts threads if not already active."""
+=======
+    def start_threads(self):
+>>>>>>> cd5dadc (Initial commit)
         if not self.is_thread_active:
             self.is_thread_active = True
             self.thread_reset.start()
@@ -191,8 +246,12 @@ class ReproduceResetRaceCondition:
             self.thread_reset_and_reset_race.start()
             print("Started threads")
 
+<<<<<<< HEAD
     def stop_threads(self) -> None:
         """Stops threads if not already stopped."""
+=======
+    def stop_threads(self):
+>>>>>>> cd5dadc (Initial commit)
         if self.is_thread_active:
             self.is_thread_active = False
             self.thread_reset.join()
@@ -206,3 +265,7 @@ if __name__ == "__main__":
     reproducer.load_level("Qualifier_Tier_1")
     reproducer.initialize_drone()
     reproducer.start_race(3)
+<<<<<<< HEAD
+=======
+
+>>>>>>> cd5dadc (Initial commit)
