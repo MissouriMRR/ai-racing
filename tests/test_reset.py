@@ -1,3 +1,10 @@
+"""
+This file was adapted from a setup file given in 
+the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
+It simply loads a level and starts a race to validate that
+everything has been set up properly.
+"""
+
 import airsimdroneracinglab
 import threading
 import time
