@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 """
 This file was adapted from a setup file given in 
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
@@ -87,6 +88,15 @@ class ReproduceResetRaceCondition:
         )
         self.thread_reset_and_reset_race: threading.Thread = threading.Thread(
 =======
+=======
+"""
+This file was adapted from a setup file given in 
+the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
+It simply loads a level and starts a race to validate that
+everything has been set up properly.
+"""
+
+>>>>>>> ffc216d (Added necessary docstring/reference)
 import airsimdroneracinglab
 import threading
 import time
