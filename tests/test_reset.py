@@ -1,8 +1,8 @@
 """
 This file was adapted from a setup file given in 
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
-It simply loads a level and starts a race to validate that
-everything has been set up properly.
+It simply loads a level and starts a race against a baseline drone
+to validate that everything has been set up properly.
 """
 
 import airsimdroneracinglab
@@ -11,7 +11,18 @@ import time
 
 
 class ReproduceResetRaceCondition:
+    """
+    Contains vaious functions for interacting with the ADRL unreal environment
+    """
+
     def __init__(self, drone_name="drone_1"):
+        """
+        Initializes class variables
+
+        Args:
+        -----
+            drone_name (string) = Name of user controlled drone (defaults to 'drone_1')
+        """
         self.airsim_client = airsimdroneracinglab.MultirotorClient()
         self.airsim_client_2 = airsimdroneracinglab.MultirotorClient()
         self.airsim_client_3 = airsimdroneracinglab.MultirotorClient()
@@ -29,34 +40,68 @@ class ReproduceResetRaceCondition:
         self.is_thread_active = False
 
     def repeat_timer(self, callback, period):
+        """
+        Simple sleep timer
+        
+        Args:
+        -----
+            callback (function) = Function to call
+            period (float) = Repeat interval in seconds
+        """
         while self.is_thread_active:
             callback()
             time.sleep(period)
 
     def load_level(self, level_name, sleep_sec=2.0):
+        """
+        Loads given simulator level.
+
+        Args:
+        -----
+            level_name (string): Soccer_Field_Easy, Soccer_Field_Medium, ZhangJiaJie_Medium,
+                Building99_Hard, Qualification_Tier_1, Qualification_Tier_2, 
+                Qualification_Tier_3, Final_Tier_1, Final_Tier_2, or Final_Tier_3
+            sleep_sec (float, optional): Sleep time for loading level. Defaults to 2.0.
+        """
         self.level_name = level_name
         self.airsim_client.simLoadLevel(self.level_name)
         self.airsim_client.confirmConnection()  # failsafe
         time.sleep(sleep_sec)  # let the environment load completely
 
     def reset(self):
+        """Resets Airsim cleint."""
         print(time.time(), "called reset")
         self.airsim_client.reset()
 
     def reset_race(self):
+        """Resets current race."""
         print(time.time(), "called simResetRace")
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self):
+        """Resets Airsim cleint and current race"""
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
 
-    def start_race(self, tier):
+    def start_race(self, tier=1):
+        """
+        Starts race against baseline drone
+
+        Args:
+        -----
+            tier: (int, optional): Race tier determining difficulty. 
+                Tier 1: Planning only; Tier 2: Perception Only; Tier 3: Planning and Perception.
+        """
         print(time.time(), "called start race")
         self.airsim_client.simStartRace(tier)
 
     def initialize_drone(self):
+        """
+        Initializes user drone, enabling API control and arming the vehicle.
+        Sets default values for trajectory tracker gains.
+
+        """
         self.airsim_client.enableApiControl(vehicle_name=self.drone_name)
         self.airsim_client.arm(vehicle_name=self.drone_name)
 
@@ -84,6 +129,7 @@ class ReproduceResetRaceCondition:
         time.sleep(0.2)
 
     def start_threads(self):
+        """Starts threads if not already active."""
         if not self.is_thread_active:
             self.is_thread_active = True
             self.thread_reset.start()
@@ -92,6 +138,7 @@ class ReproduceResetRaceCondition:
             print("Started threads")
 
     def stop_threads(self):
+        """Stops threads if not already stopped"""
         if self.is_thread_active:
             self.is_thread_active = False
             self.thread_reset.join()
@@ -105,4 +152,3 @@ if __name__ == "__main__":
     reproducer.load_level("Qualifier_Tier_1")
     reproducer.initialize_drone()
     reproducer.start_race(3)
-
