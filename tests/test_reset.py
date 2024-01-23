@@ -92,8 +92,8 @@ class ReproduceResetRaceCondition:
 """
 This file was adapted from a setup file given in 
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
-It simply loads a level and starts a race to validate that
-everything has been set up properly.
+It simply loads a level and starts a race against a baseline drone
+to validate that everything has been set up properly.
 """
 
 >>>>>>> ffc216d (Added necessary docstring/reference)
@@ -103,7 +103,18 @@ import time
 
 
 class ReproduceResetRaceCondition:
+    """
+    Contains vaious functions for interacting with the ADRL unreal environment
+    """
+
     def __init__(self, drone_name="drone_1"):
+        """
+        Initializes class variables
+
+        Args:
+        -----
+            drone_name (string) = Name of user controlled drone (defaults to 'drone_1')
+        """
         self.airsim_client = airsimdroneracinglab.MultirotorClient()
         self.airsim_client_2 = airsimdroneracinglab.MultirotorClient()
         self.airsim_client_3 = airsimdroneracinglab.MultirotorClient()
@@ -135,7 +146,18 @@ class ReproduceResetRaceCondition:
         """
 =======
     def repeat_timer(self, callback, period):
+<<<<<<< HEAD
 >>>>>>> cd5dadc (Initial commit)
+=======
+        """
+        Simple sleep timer
+        
+        Args:
+        -----
+            callback (function) = Function to call
+            period (float) = Repeat interval in seconds
+        """
+>>>>>>> 89992b9 (Added Docstrings)
         while self.is_thread_active:
             callback()
             time.sleep(period)
@@ -157,6 +179,16 @@ class ReproduceResetRaceCondition:
         self.level_name: str = level_name
 =======
     def load_level(self, level_name, sleep_sec=2.0):
+        """
+        Loads given simulator level.
+
+        Args:
+        -----
+            level_name (string): Soccer_Field_Easy, Soccer_Field_Medium, ZhangJiaJie_Medium,
+                Building99_Hard, Qualification_Tier_1, Qualification_Tier_2, 
+                Qualification_Tier_3, Final_Tier_1, Final_Tier_2, or Final_Tier_3
+            sleep_sec (float, optional): Sleep time for loading level. Defaults to 2.0.
+        """
         self.level_name = level_name
 >>>>>>> cd5dadc (Initial commit)
         self.airsim_client.simLoadLevel(self.level_name)
@@ -178,19 +210,26 @@ class ReproduceResetRaceCondition:
         """Resets airsim cleint and current race"""
 =======
     def reset(self):
+        """Resets Airsim cleint."""
         print(time.time(), "called reset")
         self.airsim_client.reset()
 
     def reset_race(self):
+        """Resets current race."""
         print(time.time(), "called simResetRace")
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self):
+<<<<<<< HEAD
 >>>>>>> cd5dadc (Initial commit)
+=======
+        """Resets Airsim cleint and current race"""
+>>>>>>> 89992b9 (Added Docstrings)
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     def start_race(self, tier: int = 1) -> None:
         """
@@ -212,11 +251,30 @@ class ReproduceResetRaceCondition:
         """
 =======
     def start_race(self, tier):
+=======
+    def start_race(self, tier=1):
+        """
+        Starts race against baseline drone
+
+        Args:
+        -----
+            tier: (int, optional): Race tier determining difficulty. 
+                Tier 1: Planning only; Tier 2: Perception Only; Tier 3: Planning and Perception.
+        """
+>>>>>>> 89992b9 (Added Docstrings)
         print(time.time(), "called start race")
         self.airsim_client.simStartRace(tier)
 
     def initialize_drone(self):
+<<<<<<< HEAD
 >>>>>>> cd5dadc (Initial commit)
+=======
+        """
+        Initializes user drone, enabling API control and arming the vehicle.
+        Sets default values for trajectory tracker gains.
+
+        """
+>>>>>>> 89992b9 (Added Docstrings)
         self.airsim_client.enableApiControl(vehicle_name=self.drone_name)
         self.airsim_client.arm(vehicle_name=self.drone_name)
 
@@ -248,7 +306,11 @@ class ReproduceResetRaceCondition:
         """Starts threads if not already active."""
 =======
     def start_threads(self):
+<<<<<<< HEAD
 >>>>>>> cd5dadc (Initial commit)
+=======
+        """Starts threads if not already active."""
+>>>>>>> 89992b9 (Added Docstrings)
         if not self.is_thread_active:
             self.is_thread_active = True
             self.thread_reset.start()
@@ -261,7 +323,11 @@ class ReproduceResetRaceCondition:
         """Stops threads if not already stopped."""
 =======
     def stop_threads(self):
+<<<<<<< HEAD
 >>>>>>> cd5dadc (Initial commit)
+=======
+        """Stops threads if not already stopped"""
+>>>>>>> 89992b9 (Added Docstrings)
         if self.is_thread_active:
             self.is_thread_active = False
             self.thread_reset.join()
@@ -276,6 +342,9 @@ if __name__ == "__main__":
     reproducer.initialize_drone()
     reproducer.start_race(3)
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> cd5dadc (Initial commit)
+=======
+>>>>>>> 89992b9 (Added Docstrings)
