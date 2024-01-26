@@ -109,7 +109,22 @@ import airsimdroneracinglab
 
 class ReproduceResetRaceCondition:
     """
-    Contains vaious functions for interacting with the ADRL unreal environment
+    Contains various functions for interacting with the ADRL unreal environment.
+
+    Attributes
+    ----------
+    airsim_client : airsimdroneracinglab.client.MultirotorCleint
+        Default airsim client for interacting with the environment
+    airsim_client_2 : airsimdroneracinglab.client.MultirotorCleint
+        Second alternative airsim client for interacting with the environment
+    airsim_client_3 : airsimdroneracinglab.client.MultirotorCleint
+        Third alternative airsim client for interacting with the environment
+    drone_name : string
+        Name of user controlled drone.
+    is_thread_active : boolean
+        Boolean used to see if current thread is active or not
+    thread_reset : threading.Thread
+
     """
 
     def __init__(self, drone_name: str = "drone_1") -> None:
