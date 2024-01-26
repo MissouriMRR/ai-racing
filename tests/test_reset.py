@@ -27,7 +27,35 @@ class ReproduceResetRaceCondition:
     is_thread_active : boolean
         Boolean used to see if current thread is active or not
     thread_reset : threading.Thread
+        Thread used to reset airsim cleint.
+    thread_reset_race : threading.Thread
+        Thread used to reset current race
+    thread_reset_and_reset_race : threading.Thread
+        Thread used to reset airsim client and current race
+    level_name : string
+        Name of current loaded level (see load_level() for options)
 
+    Methods
+    -------
+    repeat_timer(callback, period: float)
+        Simple sleep timer
+    load_level(level_name: str, sleep_sec: float = 2.0)
+        Loads given simulator level
+    reset()
+        Resets airsim client
+    reset_race()
+        Resets current race
+    reset_and_reset_race()
+        Resets airsim cleint and current race
+    start_race(tier: int = 1)
+        Starts race against a baseline drone using moveonspline
+    initialize_drone()
+        Initializes user drone, enabling API control and arming the vehicle.
+        Sets default values for trajectory tracker gains.
+    start_threads()
+        Starts threads if not already active.
+    stop_threads()
+        Stops threads if not already stopped
     """
 
     def __init__(self, drone_name: str = "drone_1") -> None:
@@ -105,14 +133,14 @@ class ReproduceResetRaceCondition:
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self) -> None:
-        """Resets Airsim cleint and current race"""
+        """Resets airsim cleint and current race"""
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
 
     def start_race(self, tier: int = 1) -> None:
         """
-        Starts race against baseline drone
+        Starts race against a baseline drone using moveonspline
 
         Parameters
         ----------
