@@ -267,7 +267,7 @@ def get_user_inputs() -> dict[str, float]:
 
 
 if __name__ == "__main__":
-    reproducer = ReproduceResetRaceCondition("drone_1")
+    reproducer: ReproduceResetRaceCondition = ReproduceResetRaceCondition("drone_1")
     reproducer.load_level("Soccer_Field_Easy")
     reproducer.initialize_drone()
     reproducer.start_race(3)
