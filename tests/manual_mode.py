@@ -230,7 +230,7 @@ class ReproduceResetRaceCondition:
             duration : float
                 Duration for the inputs to be passed to the drone given in seconds
 
-        Notes 
+        Notes
         -----
             (from airsimdroneracinglab documenation)
             Roll angle, pitch angle, and yaw angle are given in radians, in the body frame.
@@ -275,7 +275,7 @@ if __name__ == "__main__":
 
     # Loops until the user is done giving input to the drone
     while True:
-        inputs = get_user_inputs()
+        inputs: dict[str, float] = get_user_inputs()
         reproducer.give_control_stick_inputs(
             inputs["roll"],
             inputs["pitch"],
