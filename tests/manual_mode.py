@@ -217,8 +217,8 @@ class ReproduceResetRaceCondition:
         and passes them to the drone for a given amount of time.
         Drone automatically attempts to stabilize itself once commands are finished.
 
-        Aarameters:
-        -----------
+        Parameters
+        ----------
             roll : float
                 Roll angle to be passed to drone given in radians
             pitch : float
@@ -246,8 +246,8 @@ def get_user_inputs() -> dict[str, float]:
     Prompts the terminal for inputs to be passed to the drone.
     Promts the user in degrees for increased usability, then converts them to radians.
 
-    Returns:
-    --------
+    Returns
+    -------
         inputs : dict[str, float]
             Dictionary of various inputs for drone control
     """
