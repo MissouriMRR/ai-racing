@@ -230,8 +230,9 @@ class ReproduceResetRaceCondition:
             duration : float
                 Duration for the inputs to be passed to the drone given in seconds
 
-        Notes (from airsimdroneracinglab documenation):
-        -----------------------------------------------
+        Notes 
+        -----
+            (from airsimdroneracinglab documenation)
             Roll angle, pitch angle, and yaw angle are given in radians, in the body frame.
             The body frame follows the Front Left Up (FLU) convention, and right-handedness.
         """
