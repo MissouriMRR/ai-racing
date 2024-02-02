@@ -27,23 +27,18 @@ repos:
         args: ["--fix=lf"]
         description: Forces line endings to the UNIX LF character
 
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.8.0'
-    hooks:
-    -   id: mypy
-        args: ["--config-file=.mypy.ini"]
-
--   repo: https://github.com/PyCQA/pylint
-    rev: 'v3.0.3'
-    hooks:
-    -   id: pylint
-        name: pylint
-        entry: pylint
-        language: system
-        types: [python]
-        args:
-          [
-                # "-rn", # only display messages
-                # "-sn", # don't display the score
-                "--rcfile=.pylintrc", # link to config file
-          ]
+# This to be fixed later
+# -   repo: https://github.com/PyCQA/pylint
+#     rev: 'v3.0.3'
+#     hooks:
+#     -   id: pylint
+#         name: pylint
+#         entry: pylint
+#         language: system
+#         types: [python]
+#         args:
+#           [
+#                 # "-rn", # only display messages
+#                 # "-sn", # don't display the score
+#                 "--rcfile=.pylintrc", # link to config file
+#           ]

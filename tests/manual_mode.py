@@ -1,6 +1,6 @@
 """
 Based on the test_reset.py file for much of the environment setup.
-Loads a level, initiallizes a drone, takes off, then prompts the user 
+Loads a level, initiallizes a drone, takes off, then prompts the user
 for manual-mode inputs and passes these inputs to the drone.
 """
 import time

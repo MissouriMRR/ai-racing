@@ -1,5 +1,5 @@
 """
-This file was adapted from a setup file given in 
+This file was adapted from a setup file given in
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
 It simply loads a level and starts a race against a baseline drone
 to validate that everything has been set up properly.

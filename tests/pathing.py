@@ -270,8 +270,8 @@ class ReproduceResetRaceCondition:
 
         """
         gate_list: list[str] = self.airsim_client.simListSceneObjects("Gate.*")
-        gate_position: airsimdroneracinglab.Vector3r = (
-            self.airsim_client.simGetObjectPose(gate_list[gate_index])
+        gate_position: airsimdroneracinglab.Vector3r = self.airsim_client.simGetObjectPose(
+            gate_list[gate_index]
         )
         return gate_position
 
@@ -283,8 +283,8 @@ class ReproduceResetRaceCondition:
         -------
             drone_position : airsimdroneracinglab.Vector3r
         """
-        drone_position: airsimdroneracinglab.Vector3r = (
-            self.airsim_client.simGetObjectPose(self.drone_name)
+        drone_position: airsimdroneracinglab.Vector3r = self.airsim_client.simGetObjectPose(
+            self.drone_name
         )
         return drone_position
 
@@ -320,12 +320,8 @@ def get_drone_y_velocity(reproducer, current_position):
     get_drone_pose = getattr(reproducer, "get_drone_pose")
     new_position = get_drone_pose()
     y_velocity = (new_position.position.y_val - current_position.position.y_val) / 0.01
-    x_velocity = -(
-        (new_position.position.x_val - current_position.position.x_val) / 0.01
-    )
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-        new_position.orientation
-    )
+    x_velocity = -((new_position.position.x_val - current_position.position.x_val) / 0.01)
+    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(new_position.orientation)
     yaw_angle = drone_orientation[2]
     drone_y_velocity = (x_velocity / math.cos(yaw_angle)) + (
         y_velocity / math.cos(yaw_angle - (math.pi / 2))
@@ -336,13 +332,9 @@ def get_drone_y_velocity(reproducer, current_position):
         drone_y_velocity = -drone_y_velocity
     if not (0.15 > drone_y_velocity > -0.15):
         if drone_y_velocity > 0:
-            drone_y_velocity = (
-                (abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))
-            ) + 2
+            drone_y_velocity = ((abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))) + 2
         else:
-            drone_y_velocity = -(
-                ((abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))) + 2
-            )
+            drone_y_velocity = -(((abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))) + 2)
         print("Drone Y Velocity Adjusted")
     else:
         drone_y_velocity = 0
@@ -355,16 +347,12 @@ def get_drone_y_velocity(reproducer, current_position):
 if __name__ == "__main__":
     # Sets up race, initializes drone and loads level
     reproducer = ReproduceResetRaceCondition("drone_1")
-    reproducer.load_level(
-        "Soccer_Field_Easy"
-    )  # Level name can be changed  - see load_level() args
+    reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed  - see load_level() args
     reproducer.initialize_drone()
     reproducer.start_race(1)
 
     drone_pose = reproducer.get_drone_pose()
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-        drone_pose.orientation
-    )
+    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
     reproducer.takeoff()
 
     for i in range(25):
@@ -372,12 +360,8 @@ if __name__ == "__main__":
 
         drone_pose = reproducer.get_drone_pose()
         gate_pose = reproducer.get_gate_pose(i)
-        drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-            drone_pose.orientation
-        )
-        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-            gate_pose.orientation
-        )
+        drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
 
         distance_to_gate = 0
         location_reached: bool = False

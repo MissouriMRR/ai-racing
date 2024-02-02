@@ -4,7 +4,7 @@ The programs associated with the development of drone racing powered my Microsof
 
 # Setup Instructions for Airismdroneracinglab environment:
 
-1. Download the “ADRL.zip” and “settings.json” files from the link below.  
+1. Download the “ADRL.zip” and “settings.json” files from the link below.
    https://github.com/microsoft/AirSim-Drone-Racing-Lab/releases
 
 2. Extract “ADRL.zip” in an easily accessible folder and run the ADRL.exe file inside. While this will open a drone flight environment, we are just running it now to generate some files. If Windows Defender attempts to block the program, click “more info” and “run anyways.” If prompted with a window asking if you would like to do car physics simulation, select “No.” Once finished, close the window.
