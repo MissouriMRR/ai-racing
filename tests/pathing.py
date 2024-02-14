@@ -7,6 +7,7 @@ and the drone's movement is rather choppy,
 but this file offers a good starting point for more complex pathing algorithms.
 """
 
+from typing import Callable
 import math
 import threading
 import time
@@ -67,9 +68,9 @@ class ReproduceResetRaceCondition:
         and passes them to the drone for a given amount of time.
     get_gate_pose(gate_index)
         Gets a list of gates from the airsim client,
-        then returns the pose of the gate requested in the form of a vector3r.
+        then returns the pose of the gate requested in the form of an object.
     get_drone_pose()
-        Gets the current position of the drone from the airsim client and returns it as a vector3r.
+        Gets the current position of the drone from the airsim client and returns it as an object.
     """
 
     def __init__(self, drone_name: str = "drone_1") -> None:
@@ -91,6 +92,7 @@ class ReproduceResetRaceCondition:
             airsimdroneracinglab.MultirotorClient()
         )
         self.drone_name: str = drone_name
+        self.level_name: str
         self.is_thread_active: bool = False
         self.thread_reset: threading.Thread = threading.Thread(
             target=self.repeat_timer, args=(self.reset, 0.05)
@@ -103,13 +105,13 @@ class ReproduceResetRaceCondition:
         )
         self.is_thread_active = False
 
-    def repeat_timer(self, callback, period: float) -> None:
+    def repeat_timer(self, callback: Callable[[], None], period: float) -> None:
         """
-        Simple sleep timer.
+        Simple sleep timer used for resetting threads.
 
         Parameters
         ----------
-            callback
+            callback : function
                 Function to call
             period : float
                 Repeat interval in seconds
@@ -131,7 +133,7 @@ class ReproduceResetRaceCondition:
             sleep_sec : float, default=2.0
                 Sleep time for loading level.
         """
-        self.level_name: str = level_name
+        self.level_name = level_name
         self.airsim_client.simLoadLevel(self.level_name)
         self.airsim_client.confirmConnection()  # failsafe
         time.sleep(sleep_sec)  # let the environment load completely
@@ -253,10 +255,10 @@ class ReproduceResetRaceCondition:
             roll, pitch, yaw, z, duration, vehicle_name=self.drone_name
         )
 
-    def get_gate_pose(self, gate_index: int):
+    def get_gate_pose(self, gate_index: int) -> airsimdroneracinglab.Pose:
         """
         Gets a list of gates from the airsim client,
-        then returns the pose of the gate requested in the form of a vector3r.
+        then returns the pose of the gate requested in the form of an object.
 
         Paremeters
         ----------
@@ -265,83 +267,152 @@ class ReproduceResetRaceCondition:
 
         Returns
         -------
-            gate_position : airsimdroneracinglab.vector3r
-                Position of the next gate given as a vector3r
+            gate_position : airsimdroneracinglab.Pose
+                Position of the next gate given as an object containing a Quaternionr and Vector3r
 
         """
         gate_list: list[str] = self.airsim_client.simListSceneObjects("Gate.*")
-        gate_position: airsimdroneracinglab.Vector3r = self.airsim_client.simGetObjectPose(
+        gate_position: airsimdroneracinglab.Pose = self.airsim_client.simGetObjectPose(
             gate_list[gate_index]
         )
         return gate_position
 
-    def get_drone_pose(self):
+    def get_drone_pose(self) -> airsimdroneracinglab.Pose:
         """
-        Gets the current position of the drone from the airsim client and returns it as a vector3r
+        Gets the current position of the drone from the airsim client and returns it as an object.
 
         Returns
         -------
-            drone_position : airsimdroneracinglab.Vector3r
+            drone_position : airsimdroneracinglab.Pose
+                Current position of drone given as an object containing a Quaternionr and Vector3r
         """
-        drone_position: airsimdroneracinglab.Vector3r = self.airsim_client.simGetObjectPose(
+        drone_position: airsimdroneracinglab.Pose = self.airsim_client.simGetObjectPose(
             self.drone_name
         )
         return drone_position
 
+    def get_drone_y_velocity(self) -> float:
+        """
+        Calculates the drone's Y velocity using the difference in it's position over
+        a fixed interval of time.
+        """
+        interval: float = 0.01
 
-def generate_vector(start_pos, end_pos):
-    x_distance = start_pos.x_val - end_pos.x_val
-    y_distance = -(start_pos.y_val - end_pos.y_val)
-    z_distance = start_pos.z_val - end_pos.z_val
-    vector_to_gate = (x_distance, y_distance, z_distance)
-    print("Vector to Gate:", vector_to_gate)
-    return vector_to_gate
+        # Gets drone's positon "interval" number of seconds apart
+        old_position: airsimdroneracinglab.Pose = self.get_drone_pose()
+        time.sleep(interval)
+        new_position: airsimdroneracinglab.Pose = self.get_drone_pose()
+
+        # Gets difference in the new and old position divided by interval to get velocity vectors
+        y_vector: float = (new_position.position.y_val - old_position.position.y_val) / interval
+        x_vector: float = -((new_position.position.x_val - old_position.position.x_val) / interval)
+
+        # Gets the drone's current objective yaw angle as tuple[roll, pitch, yaw]
+        orientation: tuple[float, float, float] = airsimdroneracinglab.utils.to_eularian_angles(
+            new_position.orientation
+        )
+        yaw_angle: float = orientation[2]
+
+        # Gets the y (perpendicular) component of the objective x and y velocity vectors
+        x_vector_y_component: float = x_vector / math.cos(yaw_angle)
+        y_vector_y_component = y_vector / math.cos(
+            yaw_angle - (math.pi / 2)
+        )  # -pi/2 to shift -90 degrees
+
+        # Adds the two y componenets together to get the drone's total y velocity
+        y_velocity = x_vector_y_component + y_vector_y_component
+
+        if 0 > yaw_angle > -(math.pi / 2):
+            y_velocity = -y_velocity
+        elif math.pi > yaw_angle > (math.pi / 2):
+            y_velocity = -y_velocity
+
+        if not 0.15 > y_velocity > -0.15:
+            if y_velocity > 0:
+                y_velocity = ((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2
+            else:
+                y_velocity = -(((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2)
+            print("Drone Y Velocity Adjusted")
+        else:
+            y_velocity = 0
+
+        print(f"Drone Yaw Angle is: {yaw_angle}")
+        print(f"Drone Y Velocity is: {y_velocity}")
+        return y_velocity
 
 
-def generate_yaw_angle(vector_to_gate):
-    yaw_angle = math.atan(vector_to_gate[1] / vector_to_gate[0])
-    if vector_to_gate[0] > 0:
+def generate_vector(
+    start_pos: airsimdroneracinglab.Vector3r,
+    end_pos: airsimdroneracinglab.Vector3r,
+) -> tuple[float, float, float]:
+    """
+    Takes in two positional vectors, and calculates the vector difference from one to the other.
+
+    Paremeters
+    ----------
+        start_pos : arisimdroneracinglab.Vector3r
+            Starting position for generated vector
+        end_pos : airsimdroneracinglab.Vector3r
+            Ending position for generated vector
+
+    Returns
+    -------
+        vector_difference : tuple[float, float, float]
+            Vector between the two points given
+    """
+    x_distance: float = start_pos.x_val - end_pos.x_val
+    y_distance: float = -(start_pos.y_val - end_pos.y_val)  # Inverts Y value for proper result
+    z_distance: float = start_pos.z_val - end_pos.z_val
+    vector_difference: tuple[float, float, float] = (x_distance, y_distance, z_distance)
+    print("Vector to Gate:", vector_difference)
+    return vector_difference
+
+
+def generate_yaw_angle(target_vector: tuple[float, float, float]) -> float:
+    """
+    Calculates the current yaw value required to point the drone towards to its next desired
+    position, given a vector pointing from the current drone to the desired new position.
+
+    Parameters
+    ----------
+        target_vector : tuple[float, float, float]
+            Vector from the drone's current position to its desired new position
+            (often the desired position is the center of the next gate)
+
+    Returns
+    -------
+        yaw_angle : float
+            Yaw angle needed to point the drone towards it's desired target
+    """
+    yaw_angle: float = math.atan(target_vector[1] / target_vector[0])
+    if yaw_angle > 0:
         yaw_angle += math.pi
     print("Yaw angle:", math.degrees(yaw_angle))
     return yaw_angle
 
 
-def get_distance_to_gate(vector_to_gate, gate_num):
-    distance_to_gate = 0
-    for distance in vector_to_gate:
-        distance_to_gate += math.pow(distance, 2)
-    distance_to_gate = math.sqrt(distance_to_gate)
-    print(f"Distance to Gate {gate_num}: {distance_to_gate}")
-    return distance_to_gate
+def get_distance_to_target(target_vector: tuple[float, float, float]) -> float:
+    """
+    Gets the distance from the drone's current location to its target given a vector
+    from its current location to its target.
 
+    Parameters
+    ----------
+        target_vector : tuple[float, float, float]
+            Vector from the drone's current position to its desired new position
+            (often the desired position is the center of the next gate)
 
-def get_drone_y_velocity(reproducer, current_position):
-    time.sleep(0.01)
-    get_drone_pose = getattr(reproducer, "get_drone_pose")
-    new_position = get_drone_pose()
-    y_velocity = (new_position.position.y_val - current_position.position.y_val) / 0.01
-    x_velocity = -((new_position.position.x_val - current_position.position.x_val) / 0.01)
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(new_position.orientation)
-    yaw_angle = drone_orientation[2]
-    drone_y_velocity = (x_velocity / math.cos(yaw_angle)) + (
-        y_velocity / math.cos(yaw_angle - (math.pi / 2))
-    )
-    if 0 > yaw_angle > -(math.pi / 2):
-        drone_y_velocity = -drone_y_velocity
-    elif math.pi > yaw_angle > (math.pi / 2):
-        drone_y_velocity = -drone_y_velocity
-    if not (0.15 > drone_y_velocity > -0.15):
-        if drone_y_velocity > 0:
-            drone_y_velocity = ((abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))) + 2
-        else:
-            drone_y_velocity = -(((abs(drone_y_velocity) - 1) / (4 * abs(drone_y_velocity))) + 2)
-        print("Drone Y Velocity Adjusted")
-    else:
-        drone_y_velocity = 0
-
-    print(f"Drone Yaw Angle is: {yaw_angle}")
-    print(f"Drone Y Velocity is: {drone_y_velocity}")
-    return drone_y_velocity
+    Returns
+    -------
+        distance : float
+            Distance from the drone to its target
+    """
+    distance: float = 0
+    for distance in target_vector:
+        distance += math.pow(distance, 2)
+    distance = math.sqrt(distance)
+    print(f"Distance to target: {distance}")
+    return distance
 
 
 if __name__ == "__main__":
@@ -356,41 +427,44 @@ if __name__ == "__main__":
     reproducer.takeoff()
 
     for i in range(25):
-        input_duration = 0.1  # Time interval for giving drone commands (in seconds)
+        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
 
         drone_pose = reproducer.get_drone_pose()
         gate_pose = reproducer.get_gate_pose(i)
         drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
         gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
 
-        distance_to_gate = 0
-        location_reached: bool = False
-        while not location_reached:
+        distance_to_gate: float = 0
+        TARGET_REACHED: bool = False
+        while not TARGET_REACHED:
             drone_pose = reproducer.get_drone_pose()
             drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
                 drone_pose.orientation
             )
             vector_to_gate = generate_vector(drone_pose.position, gate_pose.position)
             if math.isnan(vector_to_gate[0]):
-                time.sleep(input_duration)
+                time.sleep(INPUT_DURATION)
                 continue
-            yaw_angle = generate_yaw_angle(vector_to_gate)
+            target_yaw_angle = generate_yaw_angle(vector_to_gate)
             print("Drone Orientation:", drone_orientation)
 
-            y_velocity = get_drone_y_velocity(reproducer, drone_pose)
-            if y_velocity > 0:
-                roll_angle = -0.075 * y_velocity
-            elif y_velocity < 0:
-                roll_angle = -0.075 * y_velocity
-            else:
-                roll_angle = 0
-            print("Roll angle:", roll_angle)
+            drone_y_velocity = reproducer.get_drone_y_velocity()
+            drone_roll_angle: float = 0
+            if drone_y_velocity > 0:
+                drone_roll_angle = -0.075 * drone_y_velocity
+            elif drone_y_velocity < 0:
+                drone_roll_angle = -0.075 * drone_y_velocity
+            print("Roll angle:", drone_roll_angle)
             reproducer.give_control_stick_inputs(
-                roll_angle, 0.02, yaw_angle, gate_pose.position.z_val, input_duration
+                drone_roll_angle,
+                0.02,
+                target_yaw_angle,
+                gate_pose.position.z_val,
+                INPUT_DURATION,
             )
-            distance_to_gate = get_distance_to_gate(vector_to_gate, i)
+            distance_to_gate = get_distance_to_target(vector_to_gate)
             print()
 
             if distance_to_gate < 1:
-                location_reached = True
-            time.sleep(input_duration)
+                TARGET_REACHED = True
+            time.sleep(INPUT_DURATION)
