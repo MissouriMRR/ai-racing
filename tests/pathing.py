@@ -3,8 +3,9 @@ This file starts an airsimdroneracinglab environment,
 initializes a user drone and a baseline drone,
 then autonomously controls the drone using a barebones pathing algorithm.
 Many features are hard-coded at times
-and the drone's movement is rather choppy,
+and the drone's movement is rather poorly tuned,
 but this file offers a good starting point for more complex pathing algorithms.
+Oscillation in the drone's movement can be decreased with PID loops.
 """
 
 from typing import Callable
@@ -71,6 +72,11 @@ class ReproduceResetRaceCondition:
         then returns the pose of the gate requested in the form of an object.
     get_drone_pose()
         Gets the current position of the drone from the airsim client and returns it as an object.
+    get_drone_y_velocity()
+        Calculates the drone's Y velocity using the difference in it's position over
+        a fixed interval of time.
+    get_num_gates()
+        Gets the total number of gates in the active level from the airsim client.
     """
 
     def __init__(self, drone_name: str = "drone_1") -> None:
@@ -295,8 +301,16 @@ class ReproduceResetRaceCondition:
         """
         Calculates the drone's Y velocity using the difference in it's position over
         a fixed interval of time.
+
+        Returns
+        -------
+            y_velocity : float
+                Drone's current y velocity (perpendicular left-right velocity) in relation to frame
         """
         interval: float = 0.01
+        velocity_deadzone: float = (
+            0.15  # Adjusting this value may result in better/worse performance
+        )
 
         # Gets drone's positon "interval" number of seconds apart
         old_position: airsimdroneracinglab.Pose = self.get_drone_pose()
@@ -322,23 +336,32 @@ class ReproduceResetRaceCondition:
         # Adds the two y componenets together to get the drone's total y velocity
         y_velocity = x_vector_y_component + y_vector_y_component
 
+        # Fixes trig sign errors
         if 0 > yaw_angle > -(math.pi / 2):
             y_velocity = -y_velocity
         elif math.pi > yaw_angle > (math.pi / 2):
             y_velocity = -y_velocity
 
-        if not 0.15 > y_velocity > -0.15:
-            if y_velocity > 0:
-                y_velocity = ((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2
-            else:
-                y_velocity = -(((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2)
-            print("Drone Y Velocity Adjusted")
-        else:
+        # if y velocity is inside deadzone set it to 0
+        if velocity_deadzone > y_velocity > -velocity_deadzone:
             y_velocity = 0
 
         print(f"Drone Yaw Angle is: {yaw_angle}")
         print(f"Drone Y Velocity is: {y_velocity}")
         return y_velocity
+
+    def get_num_gates(self) -> int:
+        """
+        Gets the total number of gates in the active level from the airsim client.
+
+        Returns
+        -------
+            num_gates : int
+                The number of gates present on the active level
+        """
+        gate_list: list[str] = self.airsim_client.simListSceneObjects("Gate.*")
+        num_gates = len(gate_list)
+        return num_gates
 
 
 def generate_vector(
@@ -385,7 +408,7 @@ def generate_yaw_angle(target_vector: tuple[float, float, float]) -> float:
             Yaw angle needed to point the drone towards it's desired target
     """
     yaw_angle: float = math.atan(target_vector[1] / target_vector[0])
-    if yaw_angle > 0:
+    if target_vector[0] > 0:
         yaw_angle += math.pi
     print("Yaw angle:", math.degrees(yaw_angle))
     return yaw_angle
@@ -408,63 +431,87 @@ def get_distance_to_target(target_vector: tuple[float, float, float]) -> float:
             Distance from the drone to its target
     """
     distance: float = 0
-    for distance in target_vector:
-        distance += math.pow(distance, 2)
+    for component in target_vector:
+        distance += math.pow(component, 2)
     distance = math.sqrt(distance)
     print(f"Distance to target: {distance}")
     return distance
 
 
+def calc_roll_angle(y_velocity: float) -> float:
+    """
+    Generates a roll angle that will somewhat correct the course of the drone to reduce
+    its y velocity.
+
+    Returns
+    -------
+        roll_angle : float
+            Roll angle needed to minimize the drone's y velocity
+    """
+    roll_angle: float
+    if y_velocity > 0:
+        roll_angle = -0.075 * (((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2)
+    elif y_velocity < 0:
+        roll_angle = 0.075 * (((abs(y_velocity) - 1) / (4 * abs(y_velocity))) + 2)
+    else:
+        roll_angle = 0
+    print("Roll angle:", roll_angle)
+
+    return roll_angle
+
+
 if __name__ == "__main__":
-    # Sets up race, initializes drone and loads level
+    # Sets up race, initializes drone, loads level, and takes off
     reproducer = ReproduceResetRaceCondition("drone_1")
     reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed  - see load_level() args
+    NUM_GATES = 12  # There are 12 gates on the default level "Soccer_Field_Easy"
     reproducer.initialize_drone()
     reproducer.start_race(1)
-
-    drone_pose = reproducer.get_drone_pose()
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
     reproducer.takeoff()
 
-    for i in range(25):
-        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
+    # Gets the number of gates in the active level
+    NUM_GATES = reproducer.get_num_gates()
+    print("There are ", NUM_GATES, " gates present.")
 
-        drone_pose = reproducer.get_drone_pose()
-        gate_pose = reproducer.get_gate_pose(i)
-        drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+    # Iterates through each gate in the level
+    for next_gate in range(NUM_GATES):
+        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
+        drone_pitch_angle: float = (
+            0.02  # Currently a constant, should be calculated with a PID loop
+        )
+
+        # Gets next gate position and orientation
+        gate_pose = reproducer.get_gate_pose(next_gate)
         gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
 
-        distance_to_gate: float = 0
-        TARGET_REACHED: bool = False
-        while not TARGET_REACHED:
+        # Gives the drone inputs to move it towards the next gate until it arrives
+        distance_to_gate: float = 10000
+        while distance_to_gate > 1:
+            # Gets the drone's current position and orientation
             drone_pose = reproducer.get_drone_pose()
             drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
                 drone_pose.orientation
             )
+            print("Drone Orientation:", drone_orientation)
+            # Generates vector to next gate, then verifies that the vector is a number
             vector_to_gate = generate_vector(drone_pose.position, gate_pose.position)
             if math.isnan(vector_to_gate[0]):
                 time.sleep(INPUT_DURATION)
                 continue
+            # Calculates various angles needed to point the drone at the next gate
             target_yaw_angle = generate_yaw_angle(vector_to_gate)
-            print("Drone Orientation:", drone_orientation)
-
             drone_y_velocity = reproducer.get_drone_y_velocity()
-            drone_roll_angle: float = 0
-            if drone_y_velocity > 0:
-                drone_roll_angle = -0.075 * drone_y_velocity
-            elif drone_y_velocity < 0:
-                drone_roll_angle = -0.075 * drone_y_velocity
-            print("Roll angle:", drone_roll_angle)
+            drone_roll_angle: float = calc_roll_angle(drone_y_velocity)
+            # Sends inputs to the drone
             reproducer.give_control_stick_inputs(
                 drone_roll_angle,
-                0.02,
+                drone_pitch_angle,
                 target_yaw_angle,
                 gate_pose.position.z_val,
                 INPUT_DURATION,
             )
+            # Updates distance to the gate, and sleeps to let the drone execute inputs
             distance_to_gate = get_distance_to_target(vector_to_gate)
             print()
-
-            if distance_to_gate < 1:
-                TARGET_REACHED = True
             time.sleep(INPUT_DURATION)
+    print("\nCourse Completed!!")
