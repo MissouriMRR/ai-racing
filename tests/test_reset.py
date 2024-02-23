@@ -1,10 +1,11 @@
 """
-This file was adapted from a setup file given in 
+This file was adapted from a setup file given in
 the https://github.com/microsoft/AirSim-Drone-Racing-Lab repositiry
 It simply loads a level and starts a race against a baseline drone
 to validate that everything has been set up properly.
 """
 
+from typing import Callable
 import time
 import threading
 import airsimdroneracinglab
@@ -77,6 +78,7 @@ class ReproduceResetRaceCondition:
             airsimdroneracinglab.MultirotorClient()
         )
         self.drone_name: str = drone_name
+        self.level_name: str
         self.is_thread_active: bool = False
         self.thread_reset: threading.Thread = threading.Thread(
             target=self.repeat_timer, args=(self.reset, 0.05)
@@ -89,13 +91,13 @@ class ReproduceResetRaceCondition:
         )
         self.is_thread_active = False
 
-    def repeat_timer(self, callback, period: float) -> None:
+    def repeat_timer(self, callback: Callable[[], None], period: float) -> None:
         """
-        Simple sleep timer.
+        Simple sleep timer used for resetting threads.
 
         Parameters
         ----------
-            callback
+            callback : function
                 Function to call
             period : float
                 Repeat interval in seconds
@@ -117,7 +119,7 @@ class ReproduceResetRaceCondition:
             sleep_sec : float, default=2.0
                 Sleep time for loading level.
         """
-        self.level_name: str = level_name
+        self.level_name = level_name
         self.airsim_client.simLoadLevel(self.level_name)
         self.airsim_client.confirmConnection()  # failsafe
         time.sleep(sleep_sec)  # let the environment load completely
