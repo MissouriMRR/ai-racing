@@ -336,13 +336,13 @@ class ReproduceResetRaceCondition:
         )
 
         # Performs trig operations to translate vectors to be perpendicular with respect to drone
-        x_velocity: float = (velocity_vector.y_val * math.cos(yaw_angle + (math.pi / 2))) + (
-            velocity_vector.x_val * math.cos(yaw_angle)
-        )
+        x_velocity: float = (
+            velocity_vector.y_val * math.cos(yaw_angle + (math.pi / 2))
+        ) + (velocity_vector.x_val * math.cos(yaw_angle))
 
-        y_velocity: float = (velocity_vector.y_val * math.sin(yaw_angle + (math.pi / 2))) + (
-            velocity_vector.x_val * math.sin(yaw_angle)
-        )
+        y_velocity: float = (
+            velocity_vector.y_val * math.sin(yaw_angle + (math.pi / 2))
+        ) + (velocity_vector.x_val * math.sin(yaw_angle))
 
         z_velocity: float = -velocity_vector.z_val
 
@@ -499,7 +499,9 @@ def generate_vector(
             Vector between the two points given
     """
     x_distance: float = start_pos.x_val - end_pos.x_val
-    y_distance: float = -(start_pos.y_val - end_pos.y_val)  # Inverts Y value for proper result
+    y_distance: float = -(
+        start_pos.y_val - end_pos.y_val
+    )  # Inverts Y value for proper result
     z_distance: float = start_pos.z_val - end_pos.z_val
     vector_difference: tuple[float, float, float] = (x_distance, y_distance, z_distance)
     print("Vector to Gate:", vector_difference)
@@ -556,14 +558,18 @@ def get_distance_to_target(target_vector: tuple[float, float, float]) -> float:
 if __name__ == "__main__":
     # Sets up race, initializes drone, loads level, and takes off
     reproducer = ReproduceResetRaceCondition("drone_1")
-    reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed - see load_level()
+    reproducer.load_level(
+        "Soccer_Field_Easy"
+    )  # Level name can be changed - see load_level()
     NUM_GATES = 12  # There are 12 gates on the default level "Soccer_Field_Easy"
     reproducer.initialize_drone()
     reproducer.start_race(1)
 
     # Gets drone's orientation to take off in the right direction
     drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
+        drone_pose.orientation
+    )
     reproducer.takeoff(drone_orientation)
 
     # Gets the number of gates in the active level
@@ -572,21 +578,25 @@ if __name__ == "__main__":
 
     # throttle_PID: PID = PID(max_output=1)
     # z_velocity_PID: PID = PID(max_output=0.4)
-    pitch_PID: PID = PID(kp=0.2, max_output=math.pi / 9)
-    pitch_PID.set_target(3)
-    roll_PID: PID = PID(kp=0.2, max_output=math.pi / 9)
+    pitch_PID: PID = PID(kp=0.05, max_output=math.pi / 9)
+    pitch_PID.set_target(5)
+    roll_PID: PID = PID(kp=0.15, max_output=(4 * math.pi) / 9)
     roll_PID.set_target(0)
 
     # Iterates through each gate in the level
     for next_gate in range(NUM_GATES):
-        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
+        INPUT_DURATION: float = (
+            0.1  # Time interval for giving drone commands (in seconds)
+        )
         drone_pitch_angle: float = (
             0.02  # Currently a constant, should be calculated with a PID loop
         )
 
         # Gets next gate position and orientation
         gate_pose = reproducer.get_gate_pose(next_gate)
-        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
+        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(
+            gate_pose.orientation
+        )
 
         # throttle_PID.set_target(gate_pose.position.z_val)
 
@@ -607,9 +617,9 @@ if __name__ == "__main__":
                 continue
 
             # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
-            drone_velocity_components: tuple[
-                float, float, float
-            ] = reproducer.get_drone_velocity_components(-drone_orientation[2])
+            drone_velocity_components: tuple[float, float, float] = (
+                reproducer.get_drone_velocity_components(-drone_orientation[2])
+            )
             print("Current drone yaw angle:", -math.degrees(drone_orientation[2]))
             drone_x_velocity: float = drone_velocity_components[0]
             drone_y_velocity: float = drone_velocity_components[1]
@@ -628,12 +638,6 @@ if __name__ == "__main__":
             drone_pitch_angle = pitch_PID.adjust_output(drone_x_velocity)
             print("Pitch: ", drone_pitch_angle)
             target_yaw_angle = generate_yaw_angle(vector_to_gate)
-
-            print(
-                airsimdroneracinglab.MultirotorClient.getGpsData(
-                    reproducer.airsim_client
-                ).gnss.velocity
-            )
 
             # Sends inputs to the drone
             reproducer.give_control_stick_inputs(
