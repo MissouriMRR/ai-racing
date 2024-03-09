@@ -336,13 +336,13 @@ class ReproduceResetRaceCondition:
         )
 
         # Performs trig operations to translate vectors to be perpendicular with respect to drone
-        x_velocity: float = (
-            velocity_vector.y_val * math.cos(yaw_angle + (math.pi / 2))
-        ) + (velocity_vector.x_val * math.cos(yaw_angle))
+        x_velocity: float = (velocity_vector.y_val * math.cos(yaw_angle + (math.pi / 2))) + (
+            velocity_vector.x_val * math.cos(yaw_angle)
+        )
 
-        y_velocity: float = (
-            velocity_vector.y_val * math.sin(yaw_angle + (math.pi / 2))
-        ) + (velocity_vector.x_val * math.sin(yaw_angle))
+        y_velocity: float = (velocity_vector.y_val * math.sin(yaw_angle + (math.pi / 2))) + (
+            velocity_vector.x_val * math.sin(yaw_angle)
+        )
 
         z_velocity: float = -velocity_vector.z_val
 
@@ -499,9 +499,7 @@ def generate_vector(
             Vector between the two points given
     """
     x_distance: float = start_pos.x_val - end_pos.x_val
-    y_distance: float = -(
-        start_pos.y_val - end_pos.y_val
-    )  # Inverts Y value for proper result
+    y_distance: float = -(start_pos.y_val - end_pos.y_val)  # Inverts Y value for proper result
     z_distance: float = start_pos.z_val - end_pos.z_val
     vector_difference: tuple[float, float, float] = (x_distance, y_distance, z_distance)
     print("Vector to Gate:", vector_difference)
@@ -559,17 +557,13 @@ if __name__ == "__main__":
     # Sets up race, initializes drone, loads level, and takes off
     reproducer = ReproduceResetRaceCondition("drone_1")
     # Note that the drone is only optimized for Soccer_Field_Easy and Soccer_Field_Medium
-    reproducer.load_level(
-        "Soccer_Field_Easy"
-    )  # Level name can be changed - see load_level()
+    reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed - see load_level()
     reproducer.initialize_drone()
     reproducer.start_race(1)
 
     # Gets drone's orientation to take off in the right direction
     drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-        drone_pose.orientation
-    )
+    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
     reproducer.takeoff(drone_orientation)
 
     # Gets the number of gates in the active level
@@ -586,21 +580,15 @@ if __name__ == "__main__":
 
     # Iterates through each gate in the level
     for next_gate in range(NUM_GATES):
-        INPUT_DURATION: float = (
-            0.1  # Time interval for giving drone commands (in seconds)
-        )
+        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
         drone_pitch_angle: float = (
             0.02  # Currently a constant, should be calculated with a PID loop
         )
 
         # Gets next gate position and orientation
         gate_pose = reproducer.get_gate_pose(next_gate)
-        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-            gate_pose.orientation
-        )
-        z_velocity_PID.set_target(
-            gate_pose.position.z_val
-        )  # Target height is middle of next gate
+        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
+        z_velocity_PID.set_target(gate_pose.position.z_val)  # Target height is middle of next gate
 
         # Gives the drone inputs to move it towards the next gate until it arrives
         distance_to_gate: float = 10000
@@ -617,20 +605,16 @@ if __name__ == "__main__":
                 time.sleep(INPUT_DURATION)
                 continue
             # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
-            drone_velocity_components: tuple[float, float, float] = (
-                reproducer.get_drone_velocity_components(-drone_orientation[2])
-            )
+            drone_velocity_components: tuple[
+                float, float, float
+            ] = reproducer.get_drone_velocity_components(-drone_orientation[2])
             drone_x_velocity: float = drone_velocity_components[0]
             drone_y_velocity: float = drone_velocity_components[1]
             drone_z_velocity: float = drone_velocity_components[2]
             # Uses PID loops to calculate and optimize drone inputs
-            drone_z_velocity_input: float = -z_velocity_PID.adjust_output(
-                drone_pose.position.z_val
-            )
+            drone_z_velocity_input: float = -z_velocity_PID.adjust_output(drone_pose.position.z_val)
             throttle_PID.set_target(drone_z_velocity_input)
-            drone_throttle_input: float = 0.5938 + throttle_PID.adjust_output(
-                drone_z_velocity
-            )
+            drone_throttle_input: float = 0.5938 + throttle_PID.adjust_output(drone_z_velocity)
             drone_roll_angle = roll_PID.adjust_output(drone_y_velocity)
             drone_pitch_angle = pitch_PID.adjust_output(drone_x_velocity)
             # This stops the drone from changing its yaw when very close to a gate
