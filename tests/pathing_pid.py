@@ -560,7 +560,7 @@ if __name__ == "__main__":
     reproducer = ReproduceResetRaceCondition("drone_1")
     # Note that the drone is only optimized for Soccer_Field_Easy and Soccer_Field_Medium
     reproducer.load_level(
-        "ZhangJiaJie_Medium"
+        "Soccer_Field_Easy"
     )  # Level name can be changed - see load_level()
     reproducer.initialize_drone()
     reproducer.start_race(1)
