@@ -230,7 +230,7 @@ class ReproduceResetRaceCondition:
                 All given in respect to drone's frame following FLU convention, in radians.
         """
         self.airsim_client.moveByRollPitchYawThrottleAsync(
-            0, 0, orientation[2] + math.pi, 0.8, 1, vehicle_name=self.drone_name
+            0, 0, orientation[2], 0.8, 1, vehicle_name=self.drone_name
         )
         time.sleep(1)
 
@@ -560,7 +560,7 @@ if __name__ == "__main__":
     reproducer = ReproduceResetRaceCondition("drone_1")
     # Note that the drone is only optimized for Soccer_Field_Easy and Soccer_Field_Medium
     reproducer.load_level(
-        "Soccer_Field_Easy"
+        "ZhangJiaJie_Medium"
     )  # Level name can be changed - see load_level()
     reproducer.initialize_drone()
     reproducer.start_race(1)
@@ -580,17 +580,14 @@ if __name__ == "__main__":
     z_velocity_PID: PID = PID(kp=1.35, ki=0.005, max_output=20)
     throttle_PID: PID = PID(kp=0.15, max_output=0.4)
     pitch_PID: PID = PID(kp=0.05, ki=0.00001, max_output=math.pi / 9)
-    roll_PID: PID = PID(kp=0.145, max_output=(4 * math.pi) / 9)
-    pitch_PID.set_target(5.5)  # Target speed is 5.5 m/s
+    pitch_PID.set_target(5.5)
+    roll_PID: PID = PID(kp=0.14, max_output=(4 * math.pi) / 9)
     roll_PID.set_target(0)  # Target y (left-right) velocity is 0
 
     # Iterates through each gate in the level
     for next_gate in range(NUM_GATES):
         INPUT_DURATION: float = (
             0.1  # Time interval for giving drone commands (in seconds)
-        )
-        drone_pitch_angle: float = (
-            0.02  # Currently a constant, should be calculated with a PID loop
         )
 
         # Gets next gate position and orientation
@@ -602,8 +599,8 @@ if __name__ == "__main__":
             gate_pose.position.z_val
         )  # Target height is middle of next gate
 
-        # Gives the drone inputs to move it towards the next gate until it arrives
         distance_to_gate: float = 10000
+        # Gives the drone inputs to move it towards the next gate until it arrives
         while distance_to_gate > 1.1:
             # Gets the drone's current position and orientation
             drone_pose = reproducer.get_drone_pose()
@@ -635,7 +632,7 @@ if __name__ == "__main__":
             drone_pitch_angle = pitch_PID.adjust_output(drone_x_velocity)
             # This stops the drone from changing its yaw when very close to a gate
             # Adjusting the value in the conditional could improve performance
-            if distance_to_gate > 2.5:
+            if distance_to_gate > 2:
                 target_yaw_angle = generate_yaw_angle(vector_to_gate)
             # Sends inputs to the drone
             reproducer.give_control_stick_inputs(
@@ -647,6 +644,9 @@ if __name__ == "__main__":
             )
             # Updates distance to the gate, and sleeps to let the drone execute inputs
             distance_to_gate = get_distance_to_target(vector_to_gate)
+            # Target speed based on distance to next gate, speed must be between 2.75-13.5 m/s
+            target_speed: float = min(max((distance_to_gate / 10) * 5.65, 2.75), 14)
+            pitch_PID.set_target(target_speed)
             print()
             time.sleep(INPUT_DURATION)
     print("\nCourse Completed!!")
