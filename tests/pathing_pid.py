@@ -1,7 +1,7 @@
 """
 This file starts an airsimdroneracinglab environment,
 initializes a user drone and a baseline drone,
-then autonomously controls the drone using a barebones pathing algorithm.
+then autonomously controls the drone using a real-time pathing algorithm.
 Movements are controlled and speed is optimized with PID loops.
 """
 
@@ -18,18 +18,18 @@ class ReproduceResetRaceCondition:
 
     Attributes
     ----------
-    airsim_client : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client : airsimdroneracinglab.client.MultirotorClient
         Default airsim client for interacting with the environment
-    airsim_client_2 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_2 : airsimdroneracinglab.client.MultirotorClient
         Second alternative airsim client for interacting with the environment
-    airsim_client_3 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_3 : airsimdroneracinglab.client.MultirotorClient
         Third alternative airsim client for interacting with the environment
     drone_name : string
         Name of user controlled drone.
     is_thread_active : boolean
         Boolean used to see if current thread is active or not
     thread_reset : threading.Thread
-        Thread used to reset airsim cleint.
+        Thread used to reset airsim client.
     thread_reset_race : threading.Thread
         Thread used to reset current race
     thread_reset_and_reset_race : threading.Thread
@@ -39,7 +39,7 @@ class ReproduceResetRaceCondition:
 
     Methods
     -------
-    repeat_timer(callback, period: float)
+    repeat_timer(callback : Callable[[], None], period: float)
         Simple sleep timer
     load_level(level_name: str, sleep_sec: float = 2.0)
         Loads given simulator level
@@ -48,7 +48,7 @@ class ReproduceResetRaceCondition:
     reset_race()
         Resets current race
     reset_and_reset_race()
-        Resets airsim cleint and current race
+        Resets airsim client and current race
     start_race(tier: int = 1)
         Starts race against a baseline drone using moveonspline
     initialize_drone()
@@ -58,13 +58,14 @@ class ReproduceResetRaceCondition:
         Starts threads if not already active.
     stop_threads()
         Stops threads if not already stopped
-    takeoff()
+    takeoff(orientation: tuple[float, float, float])
         Passes low level inputs to the drone to take of rapidly upward.
         Inputs last exactly 1 second during which the program sleeps before continuing.
-    give_control_stick_inputs(self, roll, pitch, yaw, z, duration)
-        Reads various control stick inputs from command-line interface
-        and passes them to the drone for a given amount of time.
-    get_gate_pose(gate_index)
+    give_control_stick_inputs(
+        self, roll: float, pitch: float, yaw: float, throttle: float, duration: float
+    )
+        Passes various inputs to the drone for a given amount of time.
+    get_gate_pose(gate_index: int)
         Gets a list of gates from the airsim client,
         then returns the pose of the gate requested in the form of an object.
     get_drone_pose()
@@ -114,7 +115,7 @@ class ReproduceResetRaceCondition:
 
         Parameters
         ----------
-            callback : function
+            callback : Callable[[], None]
                 Function to call
             period : float
                 Repeat interval in seconds
@@ -142,7 +143,7 @@ class ReproduceResetRaceCondition:
         time.sleep(sleep_sec)  # let the environment load completely
 
     def reset(self) -> None:
-        """Resets Airsim cleint."""
+        """Resets Airsim client."""
         print(time.time(), "called reset")
         self.airsim_client.reset()
 
@@ -152,7 +153,7 @@ class ReproduceResetRaceCondition:
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self) -> None:
-        """Resets airsim cleint and current race"""
+        """Resets airsim client and current race"""
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
@@ -224,10 +225,10 @@ class ReproduceResetRaceCondition:
         Passes low level inputs to the drone to take of rapidly upward.
         Inputs last exactly 1 second during which the program sleeps before continuing.
 
-        Args:
-        -----
-            drone_orientation : tuple[roll, pitch, yaw]
-                All given in respect to drone's frame following FLU convention, in radians.
+        Parameters
+        ----------
+            drone_orientation : tuple[float, float, float]
+                Roll, pitch, and yaw values given in respect to drone's frame, in radians.
         """
         self.airsim_client.moveByRollPitchYawThrottleAsync(
             0, 0, orientation[2], 0.8, 1, vehicle_name=self.drone_name
@@ -346,7 +347,7 @@ class ReproduceResetRaceCondition:
 
         z_velocity: float = -velocity_vector.z_val
 
-        # if y velocity is inside deadzone set it to 0
+        # if any velocity values is inside deadzone, set it to 0
         if x_velocity_deadzone > x_velocity > -x_velocity_deadzone:
             x_velocity = 0
         if y_velocity_deadzone > y_velocity > -y_velocity_deadzone:
@@ -368,7 +369,8 @@ class ReproduceResetRaceCondition:
 
     def get_num_gates(self) -> int:
         """
-        Gets the total number of gates in the active level from the airsim client.
+        Gets the total number of gates in the active level from the airsim client
+        and prints the amount to the console.
 
         Returns
         -------
@@ -376,7 +378,8 @@ class ReproduceResetRaceCondition:
                 The number of gates present on the active level
         """
         gate_list: list[str] = self.airsim_client.simListSceneObjects("Gate.*")
-        num_gates = len(gate_list)
+        num_gates: int = len(gate_list)
+        print("There are ", num_gates, " gates present.")
         return num_gates
 
 
@@ -555,52 +558,61 @@ def get_distance_to_target(target_vector: tuple[float, float, float]) -> float:
 
 if __name__ == "__main__":
     # Sets up race, initializes drone, loads level, and takes off
-    reproducer = ReproduceResetRaceCondition("drone_1")
-    # Note that the drone is only optimized for Soccer_Field_Easy and Soccer_Field_Medium
-    reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed - see load_level()
+    reproducer: ReproduceResetRaceCondition = ReproduceResetRaceCondition("drone_1")
+    reproducer.load_level(
+        "Soccer_Field_Easy"
+    )  # Can be changed - currently only optimized for Soccer_Field_Easy and Soccer_Field_Medium
     reproducer.initialize_drone()
     reproducer.start_race(1)
 
-    # Gets drone's orientation to take off in the right direction
+    # Gets the drone's orientation and takes off pointing the right direction
     drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
-    drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+    drone_orientation: tuple[float, float, float] = airsimdroneracinglab.utils.to_eularian_angles(
+        drone_pose.orientation
+    )
     reproducer.takeoff(drone_orientation)
 
-    # Gets the number of gates in the active level
-    NUM_GATES = reproducer.get_num_gates()
-    print("There are ", NUM_GATES, " gates present.")
+    # Defines various constants important for drone autonomy
+    INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
+    ACCEPTABLE_DISTANCE_TO_GATE: float = (
+        1.1  # Making this value smaller will increase drone's accuracy when pathing through gates
+    )
+    YAW_DEADZONE: float = (
+        2.0  # Making this value bigger can help to minimize unecessary movements made by the drone
+    )
+    NUM_GATES: int = reproducer.get_num_gates()
 
-    # Defines Various input PID loops and thier respective gains
+    # Defines Various input PID loops and thier respective gains and targets
     z_velocity_PID: PID = PID(kp=1.35, ki=0.005, max_output=20)
     throttle_PID: PID = PID(kp=0.15, max_output=0.4)
     pitch_PID: PID = PID(kp=0.05, ki=0.00001, max_output=math.pi / 9)
-    pitch_PID.set_target(5.5)
+    target_speed: float = 5.5  # This value is later dynamically updated
     roll_PID: PID = PID(kp=0.14, max_output=(4 * math.pi) / 9)
-    roll_PID.set_target(0)  # Target y (left-right) velocity is 0
+    roll_PID.set_target(0)  # y (left-right) velocity target should always be 0
 
-    # Iterates through each gate in the level
+    # Iterates through each gate in the level until all gates are completed
     for next_gate in range(NUM_GATES):
-        INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
-
-        # Gets next gate position and orientation
-        gate_pose = reproducer.get_gate_pose(next_gate)
-        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
-        z_velocity_PID.set_target(gate_pose.position.z_val)  # Target height is middle of next gate
+        # Gets next gate position and targets its height
+        gate_pose: airsimdroneracinglab.Pose = reproducer.get_gate_pose(next_gate)
+        z_velocity_PID.set_target(gate_pose.position.z_val)
 
         distance_to_gate: float = 10000
         # Gives the drone inputs to move it towards the next gate until it arrives
-        while distance_to_gate > 1.1:
+        while distance_to_gate > ACCEPTABLE_DISTANCE_TO_GATE:
             # Gets the drone's current position and orientation
             drone_pose = reproducer.get_drone_pose()
             drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
                 drone_pose.orientation
             )
-            print("Drone Orientation:", drone_orientation)
-            # Generates vector to next gate, then verifies that the vector is a number
-            vector_to_gate = generate_vector(drone_pose.position, gate_pose.position)
+
+            # Generates vector to next gate, then verifies that the vector is a real number
+            vector_to_gate: tuple[float, float, float] = generate_vector(
+                drone_pose.position, gate_pose.position
+            )
             if math.isnan(vector_to_gate[0]):
                 time.sleep(INPUT_DURATION)
                 continue
+
             # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
             drone_velocity_components: tuple[
                 float, float, float
@@ -608,16 +620,18 @@ if __name__ == "__main__":
             drone_x_velocity: float = drone_velocity_components[0]
             drone_y_velocity: float = drone_velocity_components[1]
             drone_z_velocity: float = drone_velocity_components[2]
+
             # Uses PID loops to calculate and optimize drone inputs
             drone_z_velocity_input: float = -z_velocity_PID.adjust_output(drone_pose.position.z_val)
             throttle_PID.set_target(drone_z_velocity_input)
             drone_throttle_input: float = 0.5938 + throttle_PID.adjust_output(drone_z_velocity)
-            drone_roll_angle = roll_PID.adjust_output(drone_y_velocity)
-            drone_pitch_angle = pitch_PID.adjust_output(drone_x_velocity)
-            # This stops the drone from changing its yaw when very close to a gate
-            # Adjusting the value in the conditional could improve performance
-            if distance_to_gate > 2:
-                target_yaw_angle = generate_yaw_angle(vector_to_gate)
+            drone_roll_angle: float = roll_PID.adjust_output(drone_y_velocity)
+            pitch_PID.set_target(target_speed)
+            drone_pitch_angle: float = pitch_PID.adjust_output(drone_x_velocity)
+
+            if distance_to_gate > YAW_DEADZONE:  # Stops drone from changing yaw when close to gate
+                target_yaw_angle: float = generate_yaw_angle(vector_to_gate)
+
             # Sends inputs to the drone
             reproducer.give_control_stick_inputs(
                 drone_roll_angle,
@@ -626,11 +640,10 @@ if __name__ == "__main__":
                 drone_throttle_input,
                 INPUT_DURATION,
             )
-            # Updates distance to the gate, and sleeps to let the drone execute inputs
+
+            # Sets speed target based on distance to next gate, will always be between 2.75-14 (m/s)
             distance_to_gate = get_distance_to_target(vector_to_gate)
-            # Target speed based on distance to next gate, speed must be between 2.75-13.5 m/s
-            target_speed: float = min(max((distance_to_gate / 10) * 5.65, 2.75), 14)
-            pitch_PID.set_target(target_speed)
+            target_speed = min(max((distance_to_gate / 10) * 5.65, 2.75), 14)
             print()
-            time.sleep(INPUT_DURATION)
+            time.sleep(INPUT_DURATION)  # Sleeps to allow the drone to have time to execute inputs
     print("\nCourse Completed!!")

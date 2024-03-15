@@ -21,18 +21,18 @@ class ReproduceResetRaceCondition:
 
     Attributes
     ----------
-    airsim_client : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client : airsimdroneracinglab.client.MultirotorClient
         Default airsim client for interacting with the environment
-    airsim_client_2 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_2 : airsimdroneracinglab.client.MultirotorClient
         Second alternative airsim client for interacting with the environment
-    airsim_client_3 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_3 : airsimdroneracinglab.client.MultirotorClient
         Third alternative airsim client for interacting with the environment
     drone_name : string
         Name of user controlled drone.
     is_thread_active : boolean
         Boolean used to see if current thread is active or not
     thread_reset : threading.Thread
-        Thread used to reset airsim cleint.
+        Thread used to reset airsim client.
     thread_reset_race : threading.Thread
         Thread used to reset current race
     thread_reset_and_reset_race : threading.Thread
@@ -42,7 +42,7 @@ class ReproduceResetRaceCondition:
 
     Methods
     -------
-    repeat_timer(callback, period: float)
+    repeat_timer(callback : Callable[[], None], period: float)
         Simple sleep timer
     load_level(level_name: str, sleep_sec: float = 2.0)
         Loads given simulator level
@@ -51,7 +51,7 @@ class ReproduceResetRaceCondition:
     reset_race()
         Resets current race
     reset_and_reset_race()
-        Resets airsim cleint and current race
+        Resets airsim client and current race
     start_race(tier: int = 1)
         Starts race against a baseline drone using moveonspline
     initialize_drone()
@@ -64,10 +64,11 @@ class ReproduceResetRaceCondition:
     takeoff()
         Built-in ADRL async takeoff function.
         Sends moveonspline commands to drone in order to take off.
-    give_control_stick_inputs(self, roll, pitch, yaw, z, duration)
-        Reads various control stick inputs from command-line interface
-        and passes them to the drone for a given amount of time.
-    get_gate_pose(gate_index)
+    give_control_stick_inputs(
+        self, roll: float, pitch: float, yaw: float, z: float, duration: float
+    )
+        Passes various inputs to the drone for a given amount of time.
+    get_gate_pose(gate_index: int)
         Gets a list of gates from the airsim client,
         then returns the pose of the gate requested in the form of an object.
     get_drone_pose()
@@ -117,7 +118,7 @@ class ReproduceResetRaceCondition:
 
         Parameters
         ----------
-            callback : function
+            callback : Callable[[], None]
                 Function to call
             period : float
                 Repeat interval in seconds
@@ -145,7 +146,7 @@ class ReproduceResetRaceCondition:
         time.sleep(sleep_sec)  # let the environment load completely
 
     def reset(self) -> None:
-        """Resets Airsim cleint."""
+        """Resets Airsim client."""
         print(time.time(), "called reset")
         self.airsim_client.reset()
 
@@ -155,7 +156,7 @@ class ReproduceResetRaceCondition:
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self) -> None:
-        """Resets airsim cleint and current race"""
+        """Resets airsim client and current race"""
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
@@ -308,9 +309,8 @@ class ReproduceResetRaceCondition:
                 Drone's current y velocity (perpendicular left-right velocity) in relation to frame
         """
         interval: float = 0.01
-        velocity_deadzone: float = (
-            0.15  # Adjusting this value may result in better/worse performance
-        )
+        # Increasing gives more accurate output but can lead to overcorrection for small velocities
+        velocity_deadzone: float = 0.15
 
         # Gets drone's positon "interval" number of seconds apart
         old_position: airsimdroneracinglab.Pose = self.get_drone_pose()
@@ -360,7 +360,7 @@ class ReproduceResetRaceCondition:
                 The number of gates present on the active level
         """
         gate_list: list[str] = self.airsim_client.simListSceneObjects("Gate.*")
-        num_gates = len(gate_list)
+        num_gates: int = len(gate_list)
         return num_gates
 
 
@@ -462,15 +462,14 @@ def calc_roll_angle(y_velocity: float) -> float:
 
 if __name__ == "__main__":
     # Sets up race, initializes drone, loads level, and takes off
-    reproducer = ReproduceResetRaceCondition("drone_1")
+    reproducer: ReproduceResetRaceCondition = ReproduceResetRaceCondition("drone_1")
     reproducer.load_level("Soccer_Field_Easy")  # Level name can be changed  - see load_level() args
-    NUM_GATES = 12  # There are 12 gates on the default level "Soccer_Field_Easy"
     reproducer.initialize_drone()
     reproducer.start_race(1)
     reproducer.takeoff()
 
     # Gets the number of gates in the active level
-    NUM_GATES = reproducer.get_num_gates()
+    NUM_GATES: int = reproducer.get_num_gates()
     print("There are ", NUM_GATES, " gates present.")
 
     # Iterates through each gate in the level
@@ -480,27 +479,25 @@ if __name__ == "__main__":
             0.02  # Currently a constant, should be calculated with a PID loop
         )
 
-        # Gets next gate position and orientation
-        gate_pose = reproducer.get_gate_pose(next_gate)
-        gate_orientation = airsimdroneracinglab.utils.to_eularian_angles(gate_pose.orientation)
+        # Gets next gate position
+        gate_pose: airsimdroneracinglab.Pose = reproducer.get_gate_pose(next_gate)
 
         # Gives the drone inputs to move it towards the next gate until it arrives
         distance_to_gate: float = 10000
         while distance_to_gate > 1:
-            # Gets the drone's current position and orientation
-            drone_pose = reproducer.get_drone_pose()
-            drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-                drone_pose.orientation
-            )
-            print("Drone Orientation:", drone_orientation)
+            # Gets the drone's current position
+            drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
+
             # Generates vector to next gate, then verifies that the vector is a number
-            vector_to_gate = generate_vector(drone_pose.position, gate_pose.position)
+            vector_to_gate: tuple[float, float, float] = generate_vector(
+                drone_pose.position, gate_pose.position
+            )
             if math.isnan(vector_to_gate[0]):
                 time.sleep(INPUT_DURATION)
                 continue
             # Calculates various angles needed to point the drone at the next gate
-            target_yaw_angle = generate_yaw_angle(vector_to_gate)
-            drone_y_velocity = reproducer.get_drone_y_velocity()
+            target_yaw_angle: float = generate_yaw_angle(vector_to_gate)
+            drone_y_velocity: float = reproducer.get_drone_y_velocity()
             drone_roll_angle: float = calc_roll_angle(drone_y_velocity)
             # Sends inputs to the drone
             reproducer.give_control_stick_inputs(
