@@ -13,6 +13,7 @@ The programs associated with the development of drone racing powered my Microsof
 
    - `git clone https://github.com/MissouriMRR/ai-racing.git`
 
+
 4. Future steps require Python 3.10 to be installed (the download can be found [here](https://www.python.org/downloads/release/python-31011/)). Navigate to the home directory of the git repository you just cloned. Open the command line and run the following command to install dependencies.
     - `pip install -r requirements.txt`
 
