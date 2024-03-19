@@ -382,6 +382,21 @@ class ReproduceResetRaceCondition:
         print("There are ", num_gates, " gates present.")
         return num_gates
 
+    def get_last_gate_passed(self) -> int:
+        """
+        Gets the value of the last gate passed by the drone.
+
+        Returns
+        -------
+            gate_index : int
+                Integer value representing the last gate passed on the current level
+        """
+        gate_index: int = self.airsim_client.simGetLastGatePassed(vehicle_name=self.drone_name)
+        # Initial value (when no gate passed yet) is 65535, adjusts this value to return -1
+        if gate_index == 65535:
+            return -1
+        return gate_index
+
 
 class PID:
     """
@@ -598,7 +613,7 @@ if __name__ == "__main__":
 
         distance_to_gate: float = 10000
         # Gives the drone inputs to move it towards the next gate until it arrives
-        while distance_to_gate > ACCEPTABLE_DISTANCE_TO_GATE:
+        while reproducer.get_last_gate_passed() < next_gate:
             # Gets the drone's current position and orientation
             drone_pose = reproducer.get_drone_pose()
             drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
