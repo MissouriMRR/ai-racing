@@ -75,6 +75,14 @@ class ReproduceResetRaceCondition:
         in the drone's position over time and trigonometric functions.
     get_num_gates()
         Gets the total number of gates in the active level from the airsim client.
+    get_last_gate_passed()
+        Gets the value of the last gate passed by the drone.
+    is_drone_disqualified()
+        Determines whether or not the current drone is disqualified due to interference
+        with another drone.
+    get_current_time()
+        Gets the current time from the simulated GPS, then returns it in seconds.
+
     """
 
     def __init__(self, drone_name: str = "drone_1") -> None:
@@ -231,7 +239,7 @@ class ReproduceResetRaceCondition:
                 Roll, pitch, and yaw values given in respect to drone's frame, in radians.
         """
         self.airsim_client.moveByRollPitchYawThrottleAsync(
-            0, 0, orientation[2], 0.8, 1, vehicle_name=self.drone_name
+            0, 0, orientation[2], 0.8, 2, vehicle_name=self.drone_name
         )
         time.sleep(1)
 
@@ -355,10 +363,6 @@ class ReproduceResetRaceCondition:
         if z_velocity_deadzone > z_velocity > -z_velocity_deadzone:
             z_velocity = 0
 
-        print(f"Drone X Velocity is: {x_velocity}")
-        print(f"Drone Y Velocity is: {y_velocity}")
-        print(f"Drone Z Velocity is: {z_velocity}")
-
         velocity_components: tuple[float, float, float] = (
             x_velocity,
             y_velocity,
@@ -396,6 +400,33 @@ class ReproduceResetRaceCondition:
         if gate_index == 65535:
             return -1
         return gate_index
+
+    def is_drone_disqualified(self) -> bool:
+        """
+        Determines whether or not the current drone is disqualified due to interference
+        with another drone.
+
+        Returns
+        -------
+            is_disqualified : bool
+                True if the drone is disqualified, false if it is not.
+        """
+        is_disqualified: bool = self.airsim_client.simIsRacerDisqualified(
+            vehicle_name=self.drone_name
+        )
+        return is_disqualified
+
+    def get_current_time(self) -> float:
+        """
+        Gets the current time from the simulated GPS, then returns it in seconds.
+
+        Returns
+        -------
+            time : float
+                The current simulator time (in seconds).
+        """
+        current_time: float = self.airsim_client.getGpsData().time_stamp / 1000000000
+        return current_time
 
 
 class PID:
@@ -520,7 +551,6 @@ def generate_vector(
     y_distance: float = -(start_pos.y_val - end_pos.y_val)  # Inverts Y value for proper result
     z_distance: float = start_pos.z_val - end_pos.z_val
     vector_difference: tuple[float, float, float] = (x_distance, y_distance, z_distance)
-    print("Vector to Gate:", vector_difference)
     return vector_difference
 
 
@@ -543,7 +573,6 @@ def generate_yaw_angle(target_vector: tuple[float, float, float]) -> float:
     yaw_angle: float = math.atan(target_vector[1] / target_vector[0])
     if target_vector[0] > 0:
         yaw_angle += math.pi
-    print("Target yaw angle:", math.degrees(yaw_angle))
     return yaw_angle
 
 
@@ -567,25 +596,12 @@ def get_distance_to_target(target_vector: tuple[float, float, float]) -> float:
     for component in target_vector:
         distance += math.pow(component, 2)
     distance = math.sqrt(distance)
-    print(f"Distance to target: {distance}")
     return distance
 
 
 if __name__ == "__main__":
     # Sets up race, initializes drone, loads level, and takes off
     reproducer: ReproduceResetRaceCondition = ReproduceResetRaceCondition("drone_1")
-    reproducer.load_level(
-        "Soccer_Field_Easy"
-    )  # Can be changed - currently only optimized for Soccer_Field_Easy and Soccer_Field_Medium
-    reproducer.initialize_drone()
-    reproducer.start_race(1)
-
-    # Gets the drone's orientation and takes off pointing the right direction
-    drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
-    drone_orientation: tuple[float, float, float] = airsimdroneracinglab.utils.to_eularian_angles(
-        drone_pose.orientation
-    )
-    reproducer.takeoff(drone_orientation)
 
     # Defines various constants important for drone autonomy
     INPUT_DURATION: float = 0.1  # Time interval for giving drone commands (in seconds)
@@ -595,7 +611,6 @@ if __name__ == "__main__":
     YAW_DEADZONE: float = (
         2.0  # Making this value bigger can help to minimize unecessary movements made by the drone
     )
-    NUM_GATES: int = reproducer.get_num_gates()
 
     # Defines Various input PID loops and thier respective gains and targets
     z_velocity_PID: PID = PID(kp=1.35, ki=0.005, max_output=20)
@@ -605,60 +620,92 @@ if __name__ == "__main__":
     roll_PID: PID = PID(kp=0.14, max_output=(4 * math.pi) / 9)
     roll_PID.set_target(0)  # y (left-right) velocity target should always be 0
 
-    # Iterates through each gate in the level until all gates are completed
-    for next_gate in range(NUM_GATES):
-        # Gets next gate position and targets its height
-        gate_pose: airsimdroneracinglab.Pose = reproducer.get_gate_pose(next_gate)
-        z_velocity_PID.set_target(gate_pose.position.z_val)
+    # An infinite loop needed for data model training
+    while True:
+        reproducer.load_level(
+            "Soccer_Field_Easy"
+        )  # Can be changed - currently only optimized for Soccer_Field_Easy and Soccer_Field_Medium
+        NUM_GATES: int = reproducer.get_num_gates()
+        reproducer.initialize_drone()
+        reproducer.start_race(1)
 
-        distance_to_gate: float = 10000
-        # Gives the drone inputs to move it towards the next gate until it arrives
-        while reproducer.get_last_gate_passed() < next_gate:
-            # Gets the drone's current position and orientation
-            drone_pose = reproducer.get_drone_pose()
-            drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
-                drone_pose.orientation
-            )
+        # Sets the start time of the current race
+        race_start_time: float = reproducer.get_current_time()
 
-            # Generates vector to next gate, then verifies that the vector is a real number
-            vector_to_gate: tuple[float, float, float] = generate_vector(
-                drone_pose.position, gate_pose.position
-            )
-            if math.isnan(vector_to_gate[0]):
-                time.sleep(INPUT_DURATION)
-                continue
+        # Gets the drone's orientation and takes off pointing the right direction
+        drone_pose: airsimdroneracinglab.Pose = reproducer.get_drone_pose()
+        drone_orientation: tuple[
+            float, float, float
+        ] = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+        reproducer.takeoff(drone_orientation)
 
-            # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
-            drone_velocity_components: tuple[
-                float, float, float
-            ] = reproducer.get_drone_velocity_components(-drone_orientation[2])
-            drone_x_velocity: float = drone_velocity_components[0]
-            drone_y_velocity: float = drone_velocity_components[1]
-            drone_z_velocity: float = drone_velocity_components[2]
+        # Iterates through each gate in the level until all gates are completed
+        for next_gate in range(NUM_GATES):
+            # Gets next gate position and targets its height
+            gate_pose: airsimdroneracinglab.Pose = reproducer.get_gate_pose(next_gate)
+            z_velocity_PID.set_target(gate_pose.position.z_val)
 
-            # Uses PID loops to calculate and optimize drone inputs
-            drone_z_velocity_input: float = -z_velocity_PID.adjust_output(drone_pose.position.z_val)
-            throttle_PID.set_target(drone_z_velocity_input)
-            drone_throttle_input: float = 0.5938 + throttle_PID.adjust_output(drone_z_velocity)
-            drone_roll_angle: float = roll_PID.adjust_output(drone_y_velocity)
-            pitch_PID.set_target(target_speed)
-            drone_pitch_angle: float = pitch_PID.adjust_output(drone_x_velocity)
+            distance_to_gate: float = 10000
+            # Gives the drone inputs to move it towards the next gate until it arrives
+            while reproducer.get_last_gate_passed() < next_gate:
+                # Gets the drone's current position and orientation
+                drone_pose = reproducer.get_drone_pose()
+                drone_orientation = airsimdroneracinglab.utils.to_eularian_angles(
+                    drone_pose.orientation
+                )
 
-            if distance_to_gate > YAW_DEADZONE:  # Stops drone from changing yaw when close to gate
-                target_yaw_angle: float = generate_yaw_angle(vector_to_gate)
+                # Generates vector to next gate, then verifies that the vector is a real number
+                vector_to_gate: tuple[float, float, float] = generate_vector(
+                    drone_pose.position, gate_pose.position
+                )
 
-            # Sends inputs to the drone
-            reproducer.give_control_stick_inputs(
-                drone_roll_angle,
-                drone_pitch_angle,
-                target_yaw_angle,
-                drone_throttle_input,
-                INPUT_DURATION,
-            )
+                # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
+                drone_velocity_components: tuple[
+                    float, float, float
+                ] = reproducer.get_drone_velocity_components(-drone_orientation[2])
+                drone_x_velocity: float = drone_velocity_components[0]
+                drone_y_velocity: float = drone_velocity_components[1]
+                drone_z_velocity: float = drone_velocity_components[2]
 
-            # Sets speed target based on distance to next gate, will always be between 2.75-14 (m/s)
-            distance_to_gate = get_distance_to_target(vector_to_gate)
-            target_speed = min(max((distance_to_gate / 10) * 5.65, 2.75), 14)
-            print()
-            time.sleep(INPUT_DURATION)  # Sleeps to allow the drone to have time to execute inputs
-    print("\nCourse Completed!!")
+                # Fixes the occasional case where drone times out or vectors calculated are nan
+                if math.isnan(vector_to_gate[0]):
+                    if drone_x_velocity == 0:
+                        print("Drone timeout detected... Restarting Race")
+                        break
+                    time.sleep(INPUT_DURATION)
+                    continue
+
+                # Uses PID loops to calculate and optimize drone inputs
+                drone_z_velocity_input: float = -z_velocity_PID.adjust_output(
+                    drone_pose.position.z_val
+                )
+                throttle_PID.set_target(drone_z_velocity_input)
+                drone_throttle_input: float = 0.5938 + throttle_PID.adjust_output(drone_z_velocity)
+                drone_roll_angle: float = roll_PID.adjust_output(drone_y_velocity)
+                pitch_PID.set_target(target_speed)
+                drone_pitch_angle: float = pitch_PID.adjust_output(drone_x_velocity)
+
+                if (
+                    distance_to_gate > YAW_DEADZONE
+                ):  # Stops drone from changing yaw when close to gate
+                    target_yaw_angle: float = generate_yaw_angle(vector_to_gate)
+
+                # Sends inputs to the drone
+                reproducer.give_control_stick_inputs(
+                    drone_roll_angle,
+                    drone_pitch_angle,
+                    target_yaw_angle,
+                    drone_throttle_input,
+                    INPUT_DURATION,
+                )
+
+                # Sets speed target from distance to next gate will always be between 2.75-14 (m/s)
+                distance_to_gate = get_distance_to_target(vector_to_gate)
+                target_speed = min(max((distance_to_gate / 10) * 5.65, 2.75), 14)
+                time.sleep(
+                    INPUT_DURATION
+                )  # Sleeps to allow the drone to have time to execute inputs
+            if reproducer.is_drone_disqualified():
+                break
+        race_time: float = reproducer.get_current_time() - race_start_time
+        print("Total time for the race was:", race_time)
