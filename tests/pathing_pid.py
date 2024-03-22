@@ -116,6 +116,7 @@ class ReproduceResetRaceCondition:
             target=self.repeat_timer, args=(self.reset_and_reset_race, 0.09)
         )
         self.is_thread_active = False
+        self.drone_initial_height: float
 
     def repeat_timer(self, callback: Callable[[], None], period: float) -> None:
         """
@@ -238,10 +239,11 @@ class ReproduceResetRaceCondition:
             drone_orientation : tuple[float, float, float]
                 Roll, pitch, and yaw values given in respect to drone's frame, in radians.
         """
-        self.airsim_client.moveByRollPitchYawThrottleAsync(
-            0, 0, orientation[2], 0.8, 2, vehicle_name=self.drone_name
-        )
-        time.sleep(1)
+        while self.get_drone_pose().position.z_val > self.drone_initial_height - 1:
+            self.airsim_client.moveByRollPitchYawThrottleAsync(
+                0, 0, orientation[2] - math.pi, 1, 0.1, vehicle_name=self.drone_name
+            )
+            time.sleep(0.1)
 
     def give_control_stick_inputs(
         self, roll: float, pitch: float, yaw: float, throttle: float, duration: float
@@ -620,12 +622,14 @@ if __name__ == "__main__":
     roll_PID: PID = PID(kp=0.14, max_output=(4 * math.pi) / 9)
     roll_PID.set_target(0)  # y (left-right) velocity target should always be 0
 
+    reproducer.load_level(
+        "Soccer_Field_Easy"
+    )  # Can be changed - currently only optimized for Soccer_Field_Easy and Soccer_Field_Medium
+    NUM_GATES: int = reproducer.get_num_gates()
+
     # An infinite loop needed for data model training
     while True:
-        reproducer.load_level(
-            "Soccer_Field_Easy"
-        )  # Can be changed - currently only optimized for Soccer_Field_Easy and Soccer_Field_Medium
-        NUM_GATES: int = reproducer.get_num_gates()
+        reproducer.reset_and_reset_race()
         reproducer.initialize_drone()
         reproducer.start_race(1)
 
@@ -637,6 +641,7 @@ if __name__ == "__main__":
         drone_orientation: tuple[
             float, float, float
         ] = airsimdroneracinglab.utils.to_eularian_angles(drone_pose.orientation)
+        reproducer.drone_initial_height = drone_pose.position.z_val
         reproducer.takeoff(drone_orientation)
 
         # Iterates through each gate in the level until all gates are completed
