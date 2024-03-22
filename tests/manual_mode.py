@@ -17,18 +17,18 @@ class ReproduceResetRaceCondition:
 
     Attributes
     ----------
-    airsim_client : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client : airsimdroneracinglab.client.MultirotorClient
         Default airsim client for interacting with the environment
-    airsim_client_2 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_2 : airsimdroneracinglab.client.MultirotorClient
         Second alternative airsim client for interacting with the environment
-    airsim_client_3 : airsimdroneracinglab.client.MultirotorCleint
+    airsim_client_3 : airsimdroneracinglab.client.MultirotorClient
         Third alternative airsim client for interacting with the environment
     drone_name : string
         Name of user controlled drone.
     is_thread_active : boolean
         Boolean used to see if current thread is active or not
     thread_reset : threading.Thread
-        Thread used to reset airsim cleint.
+        Thread used to reset airsim client.
     thread_reset_race : threading.Thread
         Thread used to reset current race
     thread_reset_and_reset_race : threading.Thread
@@ -38,7 +38,7 @@ class ReproduceResetRaceCondition:
 
     Methods
     -------
-    repeat_timer(callback, period: float)
+    repeat_timer(callback : Callable[[], None], period: float)
         Simple sleep timer
     load_level(level_name: str, sleep_sec: float = 2.0)
         Loads given simulator level
@@ -47,7 +47,7 @@ class ReproduceResetRaceCondition:
     reset_race()
         Resets current race
     reset_and_reset_race()
-        Resets airsim cleint and current race
+        Resets airsim client and current race
     start_race(tier: int = 1)
         Starts race against a baseline drone using moveonspline
     initialize_drone()
@@ -104,7 +104,7 @@ class ReproduceResetRaceCondition:
 
         Parameters
         ----------
-            callback : function
+            callback : Callable[[], None]
                 Function to call
             period : float
                 Repeat interval in seconds
@@ -132,7 +132,7 @@ class ReproduceResetRaceCondition:
         time.sleep(sleep_sec)  # let the environment load completely
 
     def reset(self) -> None:
-        """Resets Airsim cleint."""
+        """Resets Airsim client."""
         print(time.time(), "called reset")
         self.airsim_client.reset()
 
@@ -142,7 +142,7 @@ class ReproduceResetRaceCondition:
         self.airsim_client_2.simResetRace()
 
     def reset_and_reset_race(self) -> None:
-        """Resets airsim cleint and current race"""
+        """Resets airsim client and current race"""
         print(time.time(), "called reset, followed by simResetRace")
         self.airsim_client_3.reset()
         self.airsim_client_3.simResetRace()
