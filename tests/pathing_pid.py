@@ -614,9 +614,9 @@ if __name__ == "__main__":
                 continue
 
             # Calculates the drone's current velocity as 3 vectors perpendicular to its frame
-            drone_velocity_components: tuple[
-                float, float, float
-            ] = reproducer.get_drone_velocity_components(-drone_orientation[2])
+            drone_velocity_components: tuple[float, float, float] = (
+                reproducer.get_drone_velocity_components(-drone_orientation[2])
+            )
             drone_x_velocity: float = drone_velocity_components[0]
             drone_y_velocity: float = drone_velocity_components[1]
             drone_z_velocity: float = drone_velocity_components[2]
